@@ -12,50 +12,35 @@ from watchdog.events import PatternMatchingEventHandler
 SYSROOT = r'C:\Windows\System32'
 CURROOTP = Path(__file__).parent  # Win11 is x64 only!
 SYSROOTP = Path(SYSROOT)
-DOWNLOAD_DIR = 'C:\Windows\SoftwareDistribution\Download'
+DOWNLOAD_DIR = r'C:\Windows\SoftwareDistribution\Download'
 
-def do_hook(targetExe):
-    targetDir = Path(targetExe).parent
-    (CURROOTP / "AppraiserPatcher.dll").symlink_to(targetDir / "VERSION.dll")
+def do_hook(targetDir):
+    print(f"Hooking {targetDir}")
+    targetDir = Path(targetDir)
+    (targetDir / "VERSION.dll").symlink_to(CURROOTP / "AppraiserPatcher.dll")
 
-class UpdateBoxHooker(PatternMatchingEventHandler):
-    def __init__(self):
-        patterns = ["*"]
-        ignore_patterns = None
-        ignore_directories = False
-        case_sensitive = True
-        PatternMatchingEventHandler.__init__(self, patterns, ignore_patterns, ignore_directories, case_sensitive)
-    
-    def on_created(self, event):
-        print(f"hey, {event.src_path} has been created!")
-        if event.src_path.lower().endswith(r'windowsupdatebox.exe'):
-            do_hook(event.src_path)
-    
-    def on_deleted(self, event):
-        print(f"what the f**k! Someone deleted {event.src_path}!")
-    
-    def on_modified(self, event):
-        print(f"hey buddy, {event.src_path} has been modified")
-        if event.src_path.lower().endswith(r'windowsupdatebox.exe'):
-            do_hook(event.src_path)
-    
-    def on_moved(self, event):
-        print(f"ok ok ok, someone moved {event.src_path} to {event.dest_path}")
 
+def poll_once():
+    for entry in Path(DOWNLOAD_DIR).iterdir():
+        if not entry.is_dir():
+            continue
+        if not (entry / 'WindowsUpdateBox.exe').exists():
+            continue
+        if (entry / 'VERSION.dll').exists():
+            continue
+        do_hook(entry)
+
+
+def polling():
+    while True:
+        poll_once()
+        time.sleep(30.0)
 
 def main():
     if not (SYSROOTP / "VERSION_.dll").exists():
-        (SYSROOTP / "VERSION.dll").symlink_to(SYSROOTP / "VERSION_.dll")
+        (SYSROOTP / "VERSION_.dll").symlink_to(SYSROOTP / "VERSION.dll")
 
-    my_observer = Observer()
-    my_observer.schedule(UpdateBoxHooker(), DOWNLOAD_DIR, recursive=True)
-    my_observer.start()
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        my_observer.stop()
-        my_observer.join()
-
+    polling()
+    
 if __name__ == "__main__":
     main()
