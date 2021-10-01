@@ -7,6 +7,8 @@
 #include <psapi.h>
 #include <detours/detours.h>
 #include <string>
+#include <filesystem>
+namespace fs = std::filesystem;
 
 decltype(&LoadLibraryExW) pLoadLibraryExW;
 decltype(&CreateProcessAsUserW) pCreateProcessAsUserW;
@@ -18,7 +20,19 @@ void FuckAppraiser() {
 	//CopyFileA("C:\\Windows\\System32\\appraiser_patch_newest.dll", "C:\\$WINDOWS.~BT\\Sources\\appraiser.dll", FALSE);
 	//CopyFileA("C:\\Windows\\System32\\Appraiser_Data_bypass.ini", "C:\\$WINDOWS.~BT\\Sources\\Appraiser_Data.ini", FALSE);
 	auto patchedDLL = RootPath + "\\appraiser_patch_newest.dll";
-	CopyFileA(patchedDLL.c_str(), "C:\\$WINDOWS.~BT\\Sources\\appraiser.dll", FALSE);
+	auto target = "C:\\$WINDOWS.~BT\\Sources\\appraiser.dll";
+	std::string test;
+	test += "Copying file ";
+	test += patchedDLL;
+	test += " to ";
+	test += target;
+	auto ret = CopyFileA(patchedDLL.c_str(), target, FALSE);
+	auto lastErr = GetLastError();
+	test += ", retVal: ";
+	test += std::to_string(ret);
+	test += ", lastError: ";
+	test += std::to_string(lastErr);
+	OutputDebugStringA(test.c_str());
 }
 
 BOOL hook_CreateProcessAsUserW(
@@ -92,7 +106,35 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 
 	char filePath[0x1000] = { 0 };
 	GetModuleFileNameA(hModule, filePath, sizeof(filePath));
-	RootPath = filePath;
+	HANDLE hFile = CreateFileA(filePath,
+		FILE_READ_EA,
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		0,
+		OPEN_EXISTING,
+		FILE_FLAG_BACKUP_SEMANTICS,
+		0);
+	if (INVALID_HANDLE_VALUE == hFile)
+	{
+		OutputDebugStringA("Failed to access current DLL file!");
+		return FALSE;
+	}
+	DWORD rcode = GetFinalPathNameByHandleA(hFile, filePath, sizeof(filePath), FILE_NAME_NORMALIZED);
+	if (rcode == 0) {
+		OutputDebugStringA("Failed to get current DLL's final path!");
+		return FALSE;
+	}
+
+	char* realPath = NULL;
+	if (filePath[0] == '\\' && filePath[1] == '\\' && filePath[2] == '?' && filePath[3] == '\\') {
+		RootPath = realPath + 4;
+	}
+	else {
+		RootPath = realPath;
+	}
+
+	fs::path p = realPath;
+	RootPath = p.parent_path().string();
+	
 
 	if (!hook()) {
 		OutputDebugStringA("AppraiserHijack Hook Failed!");

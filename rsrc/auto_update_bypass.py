@@ -10,14 +10,17 @@ from watchdog.events import PatternMatchingEventHandler
 
 
 SYSROOT = r'C:\Windows\System32'
-CURROOTP = Path(__file__).parent  # Win11 is x64 only!
+CURROOTP = Path(__file__).parent.absolute()  # Win11 is x64 only!
 SYSROOTP = Path(SYSROOT)
 DOWNLOAD_DIR = r'C:\Windows\SoftwareDistribution\Download'
 
 def do_hook(targetDir):
     print(f"Hooking {targetDir}")
     targetDir = Path(targetDir)
-    (targetDir / "VERSION.dll").symlink_to(CURROOTP / "AppraiserPatcher.dll")
+    targetDLL = (targetDir / "VERSION.dll")
+    if targetDLL.exists():
+        targetDLL.unlink()
+    targetDLL.symlink_to(CURROOTP / "AppraiserPatcher.dll")
 
 
 def poll_once():
