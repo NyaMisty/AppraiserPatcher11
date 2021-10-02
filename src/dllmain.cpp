@@ -16,7 +16,7 @@ decltype(&CreateProcessW) pCreateProcessW;
 
 std::string RootPath;
 
-void FuckAppraiser() {
+void FuckAppraiser1() {
 	//CopyFileA("C:\\Windows\\System32\\appraiser_patch_newest.dll", "C:\\$WINDOWS.~BT\\Sources\\appraiser.dll", FALSE);
 	//CopyFileA("C:\\Windows\\System32\\Appraiser_Data_bypass.ini", "C:\\$WINDOWS.~BT\\Sources\\Appraiser_Data.ini", FALSE);
 	auto patchedDLL = RootPath + "\\appraiser_patch_newest.dll";
@@ -33,6 +33,26 @@ void FuckAppraiser() {
 	test += ", lastError: ";
 	test += std::to_string(lastErr);
 	OutputDebugStringA(test.c_str());
+}
+
+void FuckAppraiser2() {
+	//CopyFileA("C:\\Windows\\System32\\appraiser_patch_newest.dll", "C:\\$WINDOWS.~BT\\Sources\\appraiser.dll", FALSE);
+	//CopyFileA("C:\\Windows\\System32\\Appraiser_Data_bypass.ini", "C:\\$WINDOWS.~BT\\Sources\\Appraiser_Data.ini", FALSE);
+	auto target = "C:\\$WINDOWS.~BT\\Sources\\AppraiserRes.dll";
+	std::string test;
+	test += "Deleting file ";
+	test += target;
+	auto ret = DeleteFileA(target);
+	auto lastErr = GetLastError();
+	test += ", retVal: ";
+	test += std::to_string(ret);
+	test += ", lastError: ";
+	test += std::to_string(lastErr);
+	OutputDebugStringA(test.c_str());
+}
+
+void FuckAppraiser() {
+	FuckAppraiser1();
 }
 
 BOOL hook_CreateProcessAsUserW(
@@ -126,10 +146,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 
 	char* realPath = NULL;
 	if (filePath[0] == '\\' && filePath[1] == '\\' && filePath[2] == '?' && filePath[3] == '\\') {
-		RootPath = realPath + 4;
+		realPath = filePath + 4;
 	}
 	else {
-		RootPath = realPath;
+		realPath = filePath;
 	}
 
 	fs::path p = realPath;
